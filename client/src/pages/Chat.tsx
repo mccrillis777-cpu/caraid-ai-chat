@@ -33,18 +33,18 @@ export default function Chat() {
   // Mutations
   const createConvMutation = trpc.chat.createConversation.useMutation();
   const sendMessageMutation = trpc.chat.sendMessage.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
+      await refetchConversation();
       setIsLoading(false);
-      refetchConversation();
     },
     onError: () => {
       setIsLoading(false);
     },
   });
   const retryMessageMutation = trpc.chat.retryMessage.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
+      await refetchConversation();
       setIsLoading(false);
-      refetchConversation();
     },
     onError: () => {
       setIsLoading(false);
@@ -98,6 +98,7 @@ export default function Chat() {
     } catch (error) {
       console.error("Failed to send message:", error);
       setMessageInput(message); // Restore message on error
+      setIsLoading(false);
     }
   };
 
@@ -109,6 +110,7 @@ export default function Chat() {
       await retryMessageMutation.mutateAsync({ conversationId });
     } catch (error) {
       console.error("Failed to retry message:", error);
+      setIsLoading(false);
     }
   };
 
