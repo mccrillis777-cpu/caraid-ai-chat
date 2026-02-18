@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertUser, users, conversations, messages, Conversation, Message, InsertConversation, InsertMessage } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -89,4 +89,151 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+// Conversation queries
+export async function createConversation(
+  userId: number,
+  title: string
+): Promise<Conversation> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  const result = await db
+    .insert(conversations)
+    .values({ userId, title })
+    .$returningId();
+
+  const created = await db
+    .select()
+    .from(conversations)
+    .where(eq(conversations.id, result[0].id))
+    .limit(1);
+
+  return created[0]!;
+}
+
+export async function getConversationsByUserId(userId: number): Promise<Conversation[]> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  return db
+    .select()
+    .from(conversations)
+    .where(eq(conversations.userId, userId))
+    .orderBy(desc(conversations.updatedAt));
+}
+
+export async function getConversationById(
+  conversationId: number,
+  userId: number
+): Promise<Conversation | undefined> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  const result = await db
+    .select()
+    .from(conversations)
+    .where(eq(conversations.id, conversationId))
+    .limit(1);
+
+  const conversation = result[0];
+  if (conversation && conversation.userId !== userId) {
+    throw new Error("Unauthorized: conversation does not belong to user");
+  }
+
+  return conversation;
+}
+
+export async function deleteConversation(
+  conversationId: number,
+  userId: number
+): Promise<void> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  // Verify ownership
+  const conversation = await getConversationById(conversationId, userId);
+  if (!conversation) {
+    throw new Error("Conversation not found");
+  }
+
+  // Delete messages first (foreign key constraint)
+  await db.delete(messages).where(eq(messages.conversationId, conversationId));
+
+  // Delete conversation
+  await db.delete(conversations).where(eq(conversations.id, conversationId));
+}
+
+// Message queries
+export async function createMessage(
+  conversationId: number,
+  sender: "user" | "assistant",
+  content: string
+): Promise<Message> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  const result = await db
+    .insert(messages)
+    .values({ conversationId, sender, content })
+    .$returningId();
+
+  const created = await db
+    .select()
+    .from(messages)
+    .where(eq(messages.id, result[0].id))
+    .limit(1);
+
+  return created[0]!;
+}
+
+export async function getMessagesByConversationId(
+  conversationId: number
+): Promise<Message[]> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  return db
+    .select()
+    .from(messages)
+    .where(eq(messages.conversationId, conversationId))
+    .orderBy(messages.createdAt);
+}
+
+export async function getLastAssistantMessage(
+  conversationId: number
+): Promise<Message | undefined> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  const result = await db
+    .select()
+    .from(messages)
+    .where(eq(messages.conversationId, conversationId))
+    .orderBy(desc(messages.createdAt))
+    .limit(1);
+
+  return result[0]?.sender === "assistant" ? result[0] : undefined;
+}
+
+export async function deleteMessage(messageId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  await db.delete(messages).where(eq(messages.id, messageId));
+}
