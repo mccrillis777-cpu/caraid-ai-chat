@@ -16,6 +16,7 @@ export default function Chat() {
   const [messageInput, setMessageInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const utils = trpc.useUtils();
 
   // Fetch conversations
   const { data: conversations = [] } = trpc.chat.listConversations.useQuery(
@@ -24,16 +25,28 @@ export default function Chat() {
   );
 
   // Fetch current conversation
-  const { data: currentChat } = trpc.chat.getConversation.useQuery(
+  const { data: currentChat, refetch: refetchConversation } = trpc.chat.getConversation.useQuery(
     { conversationId: conversationId! },
     { enabled: !!conversationId }
   );
 
   // Mutations
   const createConvMutation = trpc.chat.createConversation.useMutation();
-  const sendMessageMutation = trpc.chat.sendMessage.useMutation();
-  const retryMessageMutation = trpc.chat.retryMessage.useMutation();
-  const deleteConvMutation = trpc.chat.deleteConversation.useMutation();
+  const sendMessageMutation = trpc.chat.sendMessage.useMutation({
+    onSuccess: () => {
+      refetchConversation();
+    },
+  });
+  const retryMessageMutation = trpc.chat.retryMessage.useMutation({
+    onSuccess: () => {
+      refetchConversation();
+    },
+  });
+  const deleteConvMutation = trpc.chat.deleteConversation.useMutation({
+    onSuccess: () => {
+      utils.chat.listConversations.invalidate();
+    },
+  });
 
   // Auto-scroll to latest message
   useEffect(() => {
@@ -74,14 +87,9 @@ export default function Chat() {
         conversationId,
         content: message,
       });
-      // Refetch the conversation to get updated messages
-      await trpc.useUtils().chat.getConversation.invalidate({
-        conversationId,
-      });
     } catch (error) {
       console.error("Failed to send message:", error);
       setMessageInput(message); // Restore message on error
-    } finally {
       setIsLoading(false);
     }
   };
@@ -92,12 +100,8 @@ export default function Chat() {
     setIsLoading(true);
     try {
       await retryMessageMutation.mutateAsync({ conversationId });
-      await trpc.useUtils().chat.getConversation.invalidate({
-        conversationId,
-      });
     } catch (error) {
       console.error("Failed to retry message:", error);
-    } finally {
       setIsLoading(false);
     }
   };
@@ -105,7 +109,7 @@ export default function Chat() {
   const handleDeleteConversation = async (convId: number) => {
     try {
       await deleteConvMutation.mutateAsync({ conversationId: convId });
-      await trpc.useUtils().chat.listConversations.invalidate();
+      await utils.chat.listConversations.invalidate();
       if (conversationId === convId) {
         setConversationId(null);
       }
