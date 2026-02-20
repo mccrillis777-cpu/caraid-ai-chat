@@ -1,12 +1,14 @@
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
-import { getLoginUrl } from "@/const";
 import { MessageCircle, Sparkles } from "lucide-react";
+import { useEffect } from "react";
 
 export default function Home() {
-  const { user } = useAuth();
   const [, setLocation] = useLocation();
+  // Skip auth - go directly to chat
+  useEffect(() => {
+    setLocation('/chat');
+  }, [setLocation]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted flex flex-col items-center justify-center px-4">
@@ -53,25 +55,13 @@ export default function Home() {
 
         {/* CTA */}
         <div className="space-y-4">
-          {user ? (
-            <Button
-              size="lg"
-              onClick={() => setLocation("/chat")}
-              className="w-full md:w-auto"
-            >
-              Start Chatting with Caraid
-            </Button>
-          ) : (
-            <Button
-              size="lg"
-              asChild
-              className="w-full md:w-auto"
-            >
-              <a href={getLoginUrl()}>
-                Sign In to Chat
-              </a>
-            </Button>
-          )}
+          <Button
+            size="lg"
+            onClick={() => setLocation("/chat")}
+            className="w-full md:w-auto"
+          >
+            Start Chatting with Caraid
+          </Button>
         </div>
 
         {/* Footer */}

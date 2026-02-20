@@ -10,7 +10,6 @@ import { useLocation } from "wouter";
 import { Streamdown } from "streamdown";
 
 export default function Chat() {
-  const { user } = useAuth();
   const [, setLocation] = useLocation();
   const [conversationId, setConversationId] = useState<number | null>(null);
   const [messageInput, setMessageInput] = useState("");
@@ -19,10 +18,7 @@ export default function Chat() {
   const utils = trpc.useUtils();
 
   // Fetch conversations
-  const { data: conversations = [] } = trpc.chat.listConversations.useQuery(
-    undefined,
-    { enabled: !!user }
-  );
+  const { data: conversations = [] } = trpc.chat.listConversations.useQuery();
 
   // Fetch current conversation
   const { data: currentChat, refetch: refetchConversation } = trpc.chat.getConversation.useQuery(
@@ -126,16 +122,7 @@ export default function Chat() {
     }
   };
 
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <p className="text-lg mb-4">Please log in to chat with Caraid</p>
-          <Button onClick={() => setLocation("/")}>Back to Home</Button>
-        </div>
-      </div>
-    );
-  }
+
 
   return (
     <div className="flex h-screen bg-background">
