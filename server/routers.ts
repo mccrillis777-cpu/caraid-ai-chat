@@ -66,24 +66,24 @@ export const appRouter = router({
 
   chat: router({
     // Create a new conversation
-    createConversation: protectedProcedure
+    createConversation: publicProcedure
       .input(z.object({ title: z.string().min(1) }))
       .mutation(async ({ ctx, input }) => {
-        return createConversation(ctx.user.id, input.title);
+        return createConversation(ctx.user?.id || 1, input.title);
       }),
 
     // Get all conversations for the current user
-    listConversations: protectedProcedure.query(async ({ ctx }) => {
-      return getConversationsByUserId(ctx.user.id);
+    listConversations: publicProcedure.query(async ({ ctx }) => {
+      return getConversationsByUserId(ctx.user?.id || 1);
     }),
 
     // Get a specific conversation with all messages
-    getConversation: protectedProcedure
+    getConversation: publicProcedure
       .input(z.object({ conversationId: z.number() }))
       .query(async ({ ctx, input }) => {
         const conversation = await getConversationById(
           input.conversationId,
-          ctx.user.id
+          ctx.user?.id || 1
         );
         if (!conversation) {
           throw new Error("Conversation not found");
@@ -94,15 +94,15 @@ export const appRouter = router({
       }),
 
     // Delete a conversation
-    deleteConversation: protectedProcedure
+    deleteConversation: publicProcedure
       .input(z.object({ conversationId: z.number() }))
       .mutation(async ({ ctx, input }) => {
-        await deleteConversation(input.conversationId, ctx.user.id);
+        await deleteConversation(input.conversationId, ctx.user?.id || 1);
         return { success: true };
       }),
 
     // Send a message and get AI response
-    sendMessage: protectedProcedure
+    sendMessage: publicProcedure
       .input(
         z.object({
           conversationId: z.number(),
@@ -113,7 +113,7 @@ export const appRouter = router({
         // Verify conversation ownership
         const conversation = await getConversationById(
           input.conversationId,
-          ctx.user.id
+          ctx.user?.id || 1
         );
         if (!conversation) {
           throw new Error("Conversation not found");
@@ -165,13 +165,13 @@ export const appRouter = router({
       }),
 
     // Retry the last assistant message
-    retryMessage: protectedProcedure
+    retryMessage: publicProcedure
       .input(z.object({ conversationId: z.number() }))
       .mutation(async ({ ctx, input }) => {
         // Verify conversation ownership
         const conversation = await getConversationById(
           input.conversationId,
-          ctx.user.id
+          ctx.user?.id || 1
         );
         if (!conversation) {
           throw new Error("Conversation not found");
